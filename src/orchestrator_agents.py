@@ -1,16 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Orquestrador Simples - Sem LangGraph, apenas if/elif.
-
-Controla qual agente está ativo e faz transições baseadas em:
-- Palavras-chave detectadas na mensagem
-- Tool calls executados (autenticação, score atualizado, etc)
-
-MUITO mais simples que LangGraph com StateGraph/edges/routing!
-"""
-
 from typing import Dict, Any, Tuple
-from src.agents import (
+from src.agentes import (
     criar_agente_triagem,
     criar_agente_credito,
     criar_agente_entrevista,
