@@ -331,7 +331,7 @@ agente_bancario_inteligente/
 │   └── components/               # Componentes reutilizáveis (futuro)
 │
 ├── src/                          # Código fonte principal
-│   ├── agents.py                 # Definição dos agentes (LangChain)
+│   ├── agentes.py                 # Definição dos agentes (LangChain)
 │   ├── orchestrator_agents.py    # Orquestrador multi-agente
 │   │
 │   ├── tools/                    # Tools para function calling
