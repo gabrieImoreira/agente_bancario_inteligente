@@ -47,6 +47,7 @@ Pipfile.lock
 .coverage
 htmlcov/
 *.cover
+test_*.py
 
 # Streamlit
 .streamlit/
