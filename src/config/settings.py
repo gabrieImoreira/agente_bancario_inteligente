@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from typing import Optional
+from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from langchain_openai import ChatOpenAI
 
@@ -35,6 +36,17 @@ class Settings(BaseSettings):
     langchain_api_key: Optional[str] = None
     langchain_project: str = "agente-bancario"
 
+    # =========================================================================
+    # Langfuse (Observabilidade)
+    # =========================================================================
+    langfuse_public_key: Optional[str] = None
+    langfuse_secret_key: Optional[str] = None
+    langfuse_host: str = Field(
+        default="https://cloud.langfuse.com",
+        validation_alias=AliasChoices("langfuse_host", "langfuse_base_url")  # Aceita ambos os nomes
+    )
+    langfuse_enabled: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -63,6 +75,9 @@ def get_llm(
     """
     Factory para criar instância do ChatOpenAI.
 
+    O CallbackHandler do Langfuse deve ser passado no momento da execução
+    via get_langfuse_callback() para herdar o contexto do @observe.
+
     Args:
         temperature: Temperatura para o modelo (0.0-2.0).
                     Default: settings.openai_temperature
@@ -83,6 +98,33 @@ def get_llm(
         streaming=streaming,
         top_p=0.9  # Nucleus sampling
     )
+
+
+def get_langfuse_callback():
+    """
+    Retorna CallbackHandler do Langfuse que herda contexto do @observe.
+
+    Deve ser chamado no momento da execução do agente para que
+    o callback herde automaticamente o trace/span atual.
+
+    Returns:
+        CallbackHandler ou None se Langfuse não estiver habilitado.
+
+    Example:
+        >>> callbacks = []
+        >>> langfuse_cb = get_langfuse_callback()
+        >>> if langfuse_cb:
+        ...     callbacks.append(langfuse_cb)
+        >>> executor.invoke({"input": "..."}, config={"callbacks": callbacks})
+    """
+    if not settings.langfuse_enabled:
+        return None
+
+    try:
+        from langfuse.langchain import CallbackHandler
+        return CallbackHandler()  # Herda contexto automaticamente
+    except ImportError:
+        return None
 
 
 def get_deterministic_llm() -> ChatOpenAI:

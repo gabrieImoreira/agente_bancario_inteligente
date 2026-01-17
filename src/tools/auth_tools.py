@@ -1,11 +1,12 @@
 """Tools de autenticação para o Agente de Triagem."""
 
 from langchain.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 
 from src.services.data_service import DataService
 from src.utils.exceptions import AuthenticationError, DataAccessError
 from src.utils.validators import limpar_cpf
+from src.utils.observability import observe_tool
 
 
 @tool

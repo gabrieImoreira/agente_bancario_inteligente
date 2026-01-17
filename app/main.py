@@ -3,11 +3,17 @@
 
 import streamlit as st
 import sys
+import uuid
+import atexit
 from pathlib import Path
 
 # Adicionar diretorio raiz ao path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
+
+# Registrar shutdown do Langfuse para flush ao encerrar
+from src.utils.observability import shutdown_langfuse
+atexit.register(shutdown_langfuse)
 
 # ==============================================================================
 # 1. CONFIGURACAO DA INTERFACE E CARREGAMENTO DO BACKEND
@@ -66,6 +72,10 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "client_data" not in st.session_state:
     st.session_state.client_data = {}
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+if "message_count" not in st.session_state:
+    st.session_state.message_count = 0
 
 # ==============================================================================
 # 2. FUNCOES AUXILIARES
@@ -77,6 +87,9 @@ def nova_conversa():
     st.session_state.estado = criar_estado_inicial()
     st.session_state.authenticated = False
     st.session_state.client_data = {}
+    # Nova sessão para o Langfuse
+    st.session_state.session_id = str(uuid.uuid4())
+    st.session_state.message_count = 0
 
 # ==============================================================================
 # 3. LAYOUT DA APLICACAO
@@ -181,6 +194,7 @@ user_input = st.chat_input("Digite sua mensagem...")
 if user_input:
     # Adicionar mensagem do usuario
     st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.message_count += 1
 
     with st.chat_message("user"):
         st.container(border=True).markdown(user_input)
@@ -189,7 +203,43 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Processando..."):
             try:
-                # Processar mensagem
+                # Importar ferramentas de observabilidade
+                from src.utils.observability import get_langfuse_client, sanitize_cpf
+
+                # Obter cliente Langfuse para criar trace
+                langfuse = get_langfuse_client()
+
+                # Definir session_id no estado para o orquestrador
+                st.session_state.estado["session_id"] = st.session_state.session_id
+
+                # Criar span para esta mensagem usando o SDK nativo
+                span_context = None
+                if langfuse:
+                    try:
+                        user_id = "anonymous"
+                        if st.session_state.authenticated and st.session_state.estado.get("cpf"):
+                            user_id = sanitize_cpf(st.session_state.estado.get("cpf"))
+
+                        span_context = langfuse.start_as_current_span(
+                            name=f"message_{st.session_state.message_count}",
+                            input={"user_message": user_input},
+                            metadata={
+                                "authenticated": st.session_state.authenticated,
+                                "total_messages": len(st.session_state.messages),
+                                "agente_atual": st.session_state.estado.get("agente_atual")
+                            }
+                        )
+                        span_context.__enter__()
+
+                        # Atualizar trace com user_id e session_id
+                        langfuse.update_current_trace(
+                            user_id=user_id,
+                            session_id=st.session_state.session_id
+                        )
+                    except Exception:
+                        span_context = None
+
+                # Processar mensagem (orquestrador atualizará o span)
                 resposta, novo_estado = orquestrador.processar(
                     user_input,
                     st.session_state.estado
@@ -252,6 +302,24 @@ if user_input:
                                 "score_credito": novo_estado_cont.get("score")
                             }
 
+                # Finalizar span
+                if span_context:
+                    try:
+                        langfuse.update_current_span(
+                            output={
+                                "assistant_response": resposta,
+                                "response_length": len(resposta)
+                            },
+                            metadata={
+                                "agente_usado": agente_anterior,
+                                "agente_final": novo_estado.get("agente_atual"),
+                                "auto_continuou": mudou_agente and "?" not in resposta
+                            }
+                        )
+                        span_context.__exit__(None, None, None)
+                    except Exception:
+                        pass
+
             except Exception as e:
                 import traceback
                 error_msg = f"Erro ao processar: {str(e)}"
@@ -261,6 +329,13 @@ if user_input:
                     "role": "assistant",
                     "content": "Desculpe, ocorreu um erro. Tente novamente."
                 })
+
+                # Garantir que span seja fechado em caso de erro
+                if span_context:
+                    try:
+                        span_context.__exit__(type(e), e, e.__traceback__)
+                    except Exception:
+                        pass
 
     # Rerun para atualizar
     st.rerun()

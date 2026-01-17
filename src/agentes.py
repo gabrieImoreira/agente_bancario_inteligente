@@ -10,11 +10,13 @@ Cada agente é uma instância simples de Agente com:
 NÃO usa LangGraph, NÃO usa herança complexa.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Annotated
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_functions_agent, AgentExecutor
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import BaseTool
+
+from src.config.settings import get_langfuse_callback
 
 
 class AgentePadrao:
@@ -90,10 +92,16 @@ class AgentePadrao:
                 handle_parsing_errors=True
             )
 
-            result = executor.invoke({
-                "mensagem": mensagem,
-                "historico": historico
-            })
+            # Preparar callbacks do Langfuse
+            callbacks = []
+            langfuse_cb = get_langfuse_callback()
+            if langfuse_cb:
+                callbacks.append(langfuse_cb)
+
+            result = executor.invoke(
+                {"mensagem": mensagem, "historico": historico},
+                config={"callbacks": callbacks} if callbacks else None
+            )
 
             return {
                 "sucesso": True,
@@ -102,6 +110,8 @@ class AgentePadrao:
             }
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()  # Ativar para ver o traceback completo
             return {
                 "sucesso": False,
                 "resposta": f"Desculpe, ocorreu um erro: {str(e)}",

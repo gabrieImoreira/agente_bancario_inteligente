@@ -1,15 +1,17 @@
 """Tools de entrevista de credito para o Agente de Entrevista."""
 
 from langchain.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 
 from src.services.data_service import DataService
 from src.services.score_service import ScoreService
 from src.models.schemas import DadosFinanceiros
 from src.utils.validators import limpar_cpf
 from src.utils.formatters import formatar_moeda_br
+from src.utils.observability import observe_tool
 
 
+#@observe_tool("calculate_new_score")
 @tool
 def calculate_new_score(
     cpf: str,
@@ -157,6 +159,7 @@ def calculate_new_score(
         }
 
 
+#@observe_tool("update_client_score")
 @tool
 def update_client_score(cpf: str, novo_score: int) -> Dict[str, Any]:
     """

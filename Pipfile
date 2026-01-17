@@ -7,17 +7,14 @@ name = "pypi"
 langchain = "0.3.27"
 langchain-openai = "0.2.14"
 langgraph = "*"
-
 streamlit = "*"
-
 pandas = "*"
 pydantic = "*"
 pydantic-settings = "*"
-
 python-dotenv = "*"
-
 requests = "*"
 httpx = "*"
+langfuse = "*"
 
 [dev-packages]
 

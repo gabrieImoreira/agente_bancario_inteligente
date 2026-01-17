@@ -13,6 +13,7 @@ Sistema de atendimento bancário automatizado usando IA (LLM) e arquitetura mult
 - [Como Testar](#como-testar)
 - [Estrutura do Projeto](#estrutura-do-projeto)
 - [Decisões de Design](#decisões-de-design)
+- [Observabilidade (Langfuse)](#observabilidade-langfuse)
 
 ---
 
@@ -403,6 +404,92 @@ score = (renda_mensal / (despesas_fixas + 1)) * 100 +
 - Emprego formal valorizado (menor risco)
 - Penalização significativa para dívidas ativas
 
+---
+
+## Observabilidade (Langfuse)
+
+O projeto possui integração **opcional** com o [Langfuse](https://langfuse.com) para monitoramento e observabilidade das interações com o LLM.
+
+> **IMPORTANTE:** O Langfuse é completamente **opcional**. O sistema funciona normalmente sem ele.
+
+### Funcionalidades do Langfuse
+
+Quando habilitado, você pode:
+- Rastrear cada conversa (traces completos)
+- Monitorar chamadas de tools e agentes
+- Acompanhar custos e tokens utilizados
+- Analisar latência por componente
+- Debugar problemas com visibilidade total do fluxo
+
+### Como Ativar o Langfuse
+
+#### Opção 1: Langfuse Cloud (Mais Simples)
+
+**1. Obtenha suas chaves gratuitas:**
+- Acesse https://cloud.langfuse.com
+- Crie uma conta (gratuita)
+- Copie as chaves `Public Key` e `Secret Key`
+
+**2. Configure o arquivo `.env`:**
+
+```bash
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-lf-xxxxxxxx
+LANGFUSE_SECRET_KEY=sk-lf-xxxxxxxx
+LANGFUSE_HOST=https://cloud.langfuse.com
+```
+
+**3. Reinicie a aplicação**
+
+#### Opção 2: Self-Hosting com Docker
+
+Se preferir rodar localmente:
+
+```bash
+# Clonar e iniciar
+git clone https://github.com/langfuse/langfuse.git
+cd langfuse
+docker compose up -d
+
+# Acesse http://localhost:3000
+```
+
+Configure o `.env` apontando para localhost:
+
+```bash
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-lf-xxxxxxxx  # Chave do projeto local
+LANGFUSE_SECRET_KEY=sk-lf-xxxxxxxx
+LANGFUSE_HOST=http://localhost:3000
+```
+
+Veja instruções detalhadas em [LANGFUSE_GUIDE.md](./LANGFUSE_GUIDE.md#self-hosting-com-docker)
+
+### Como Desativar o Langfuse
+
+Para desativar, basta definir no `.env`:
+
+```bash
+LANGFUSE_ENABLED=false
+```
+
+Ou simplesmente não definir as variáveis `LANGFUSE_*` - o sistema detecta automaticamente e funciona sem observabilidade.
+
+### Onde Está a Configuração no Código
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/config/settings.py` | Configurações (`langfuse_enabled`, chaves) |
+| `src/utils/observability.py` | Utilitários de observabilidade |
+| `.env` | Variáveis de ambiente (ativação) |
+
+### Documentação Completa
+
+Para mais detalhes sobre a integração Langfuse (hierarquia de traces, métricas disponíveis, troubleshooting), consulte:
+
+**[LANGFUSE_GUIDE.md](./LANGFUSE_GUIDE.md)**
+
+---
 
 **Desenvolvido com:**
 - 🤖 LangChain & OpenAI

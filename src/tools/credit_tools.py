@@ -1,7 +1,7 @@
 """Tools de crédito para o Agente de Crédito."""
 
 from langchain.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 from datetime import datetime
 
 from src.services.data_service import DataService
@@ -9,8 +9,10 @@ from src.services.score_service import ScoreService
 from src.models.schemas import SolicitacaoAumento
 from src.utils.validators import limpar_cpf
 from src.utils.formatters import formatar_moeda_br
+from src.utils.observability import observe_tool
 
 
+#@observe_tool("get_credit_limit")
 @tool
 def get_credit_limit(cpf: str) -> Dict[str, Any]:
     """
@@ -71,6 +73,7 @@ def get_credit_limit(cpf: str) -> Dict[str, Any]:
         }
 
 
+#@observe_tool("request_limit_increase")
 @tool
 def request_limit_increase(cpf: str, novo_limite: float) -> Dict[str, Any]:
     """
@@ -194,6 +197,7 @@ def request_limit_increase(cpf: str, novo_limite: float) -> Dict[str, Any]:
         }
 
 
+#@observe_tool("check_max_limit_for_score")
 @tool
 def check_max_limit_for_score(score: int) -> Dict[str, Any]:
     """

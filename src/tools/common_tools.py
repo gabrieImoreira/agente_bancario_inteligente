@@ -1,9 +1,11 @@
 """Tools comuns disponiveis para todos os agentes."""
 
 from langchain.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
+from src.utils.observability import observe_tool
 
 
+#@observe_tool("end_conversation")
 @tool
 def end_conversation(motivo: str = "Cliente solicitou encerramento") -> Dict[str, Any]:
     """
@@ -67,6 +69,7 @@ def transfer_to_agent(agente_destino: str, motivo: str) -> Dict[str, Any]:
     }
 
 
+#@observe_tool("get_help")
 @tool
 def get_help() -> Dict[str, Any]:
     """

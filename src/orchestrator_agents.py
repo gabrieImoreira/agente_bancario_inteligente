@@ -16,6 +16,12 @@ from src.config.prompts import (
     format_entrevista_prompt,
     format_cambio_prompt
 )
+from src.utils.observability import (
+    observe,
+    get_langfuse_client,
+    sanitize_data,
+    sanitize_cpf
+)
 
 # Import tools
 from src.tools.auth_tools import authenticate_client, get_client_info
@@ -97,6 +103,26 @@ class OrquestradorBancoAgil:
         agente_atual = estado.get("agente_atual", "triagem")
         historico = estado.get("historico", [])
 
+        # Atualizar trace do Langfuse com contexto da sessão
+        langfuse = get_langfuse_client()
+        if langfuse:
+            try:
+                langfuse.update_current_trace(
+                    user_id=sanitize_cpf(estado.get("cpf")) if estado.get("cpf") else "anonymous",
+                    session_id=estado.get("session_id"),
+                    metadata={
+                        "agente_atual": agente_atual,
+                        "autenticado": estado.get("autenticado", False)
+                    }
+                )
+                langfuse.update_current_span(
+                    input={"mensagem": mensagem},
+                    metadata={"historico_size": len(historico)}
+                )
+            except Exception:
+                pass  # Ignora erros de observabilidade
+
+        # Executar agente específico
         if agente_atual == "triagem":
             self.triagem.system_prompt = format_triagem_prompt(self._estado_para_dict(estado))
             resultado = self.triagem.processar(mensagem, historico)
@@ -129,9 +155,24 @@ class OrquestradorBancoAgil:
             ("assistant", resultado["resposta"])
         ]
 
+        # Atualizar span com resultado
+        if langfuse:
+            try:
+                langfuse.update_current_span(
+                    output={"resposta_length": len(resultado["resposta"])},
+                    metadata={
+                        "agente_usado": agente_atual,
+                        "agente_proximo": novo_estado.get("agente_atual"),
+                        "mudou_agente": agente_atual != novo_estado.get("agente_atual"),
+                        "sucesso": resultado.get("sucesso", False)
+                    }
+                )
+            except Exception:
+                pass
+
         # Debug
         if self.verbose:
-            print(f"\n[DEBUG] Agente: {agente_atual} → {novo_estado['agente_atual']}")
+            print(f"\n[DEBUG] Agente: {agente_atual} -> {novo_estado['agente_atual']}")
             print(f"[DEBUG] Autenticado: {novo_estado.get('autenticado')}")
 
         return resultado["resposta"], novo_estado

@@ -1,11 +1,12 @@
 """Tools de cambio para o Agente de Cambio."""
 
 from langchain.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 
 from src.services.exchange_service import ExchangeService
 from src.utils.exceptions import ExchangeAPIError
 from src.utils.formatters import formatar_data_br
+from src.utils.observability import observe_tool
 
 
 @tool
